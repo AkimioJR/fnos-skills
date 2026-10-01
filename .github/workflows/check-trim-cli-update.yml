@@ -64,14 +64,10 @@ jobs:
             fi
           } >> "$GITHUB_OUTPUT"
 
-      - name: Commit, tag and release
+      - name: Commit and push
         if: steps.update.outputs.has_update == 'true'
         env:
           VERSION: ${{ steps.update.outputs.version }}
-          TARBALL_URL: ${{ steps.update.outputs.tarball_url }}
-          INTEGRITY: ${{ steps.update.outputs.integrity }}
-          TARBALL_SHA256: ${{ steps.update.outputs.tarball_sha256 }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -80,32 +76,41 @@ jobs:
 
           git add skills/trim-cli
           git commit -m "update(trim-cli): version: v${VERSION}"
-          git tag -a "v${VERSION}" -m "trim-cli v${VERSION}"
-          git push origin HEAD:main
-          git push origin "v${VERSION}"
 
+          TAG_NAME="trim-cli-v${VERSION}"
+          git tag -a "${TAG_NAME}" -m "trim-cli v${VERSION}"
+          git push origin HEAD:main
+          git push origin "${TAG_NAME}"
+
+      - name: Package assets
+        if: steps.update.outputs.has_update == 'true'
+        run: |
           mkdir dist
           cp skills/trim-cli/manifest.json dist/manifest.json
-          (cd skills && zip -qr "../dist/trim-cli-skill-v${VERSION}.zip" trim-cli)
-
+          (cd skills && zip -qr "../dist/trim-cli-skill.zip" trim-cli)
           cat > dist/notes.md <<EOF
-          ## trim-cli v${VERSION}
+          ## trim-cli v${{ steps.update.outputs.version }}
 
           Synced from npm package [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli).
 
-          - npm tarball: ${TARBALL_URL}
-          - registry integrity: ${INTEGRITY}
-          - tarball sha256: ${TARBALL_SHA256}
+          - npm tarball: ${{ steps.update.outputs.tarball_url }}
+          - registry integrity: ${{ steps.update.outputs.integrity }}
+          - tarball sha256: ${{ steps.update.outputs.tarball_sha256 }}
 
           版本与完整性校验均以 npm registry 为准。
           EOF
 
-          gh release create "v${VERSION}" \
-            --title "trim-cli v${VERSION}" \
-            --notes-file dist/notes.md \
-            dist/trim-cli-skill-v${VERSION}.zip \
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        if: steps.update.outputs.has_update == 'true'
+        with:
+          tag_name: trim-cli-v${{ steps.update.outputs.version }}
+          name: trim-cli v${{ steps.update.outputs.version }}
+          body_path: dist/notes.md
+          files: |
+            dist/trim-cli-skill.zip
             dist/manifest.json
-          gh release upload "v${VERSION}" skills/trim-cli/bin/*
+            skills/trim-cli/bin/*
 
       - name: Clean up
         if: always()
