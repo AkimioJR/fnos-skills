@@ -24,6 +24,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import shutil
 import sys
 import tarfile
@@ -40,6 +41,7 @@ REGISTRY_URL = f"https://registry.npmjs.org/{NPM_PACKAGE}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILL_DIR = REPO_ROOT / "skills" / "trim-cli"
 MANIFEST_PATH = SKILL_DIR / "manifest.json"
+README_PATH = REPO_ROOT / "README.md"
 USER_AGENT = "fnos-skills-updater (+https://github.com/AkimioJR/fnos-skills)"
 # 连接超时 30 秒；读取超时放宽到 300 秒，容忍大 tarball 的慢速下载
 REQUEST_TIMEOUT = httpx.Timeout(30.0, read=300.0)
@@ -160,6 +162,24 @@ def replace_skill_dir(source: Path) -> None:
     shutil.copytree(source, SKILL_DIR)
 
 
+def sync_readme_version(version: str) -> None:
+    """把 README 收录表格中 trim-cli 行的版本号同步为新版本。
+
+    README 版本列为纯展示信息，更新失败只降级为警告，不阻塞更新流程。
+    """
+    text = README_PATH.read_text(encoding="utf-8")
+    updated, count = re.subn(
+        r"(\| \[trim-cli\]\(skills/trim-cli/\) \| )[^|]+( \|)",
+        rf"\g<1>{version}\g<2>",
+        text,
+    )
+    if count == 0:
+        logger.warning("README 中未找到 trim-cli 收录行，跳过版本同步")
+        return
+    README_PATH.write_text(updated, encoding="utf-8")
+    logger.info(f"README 版本号已同步为 {version}")
+
+
 def run_check(client: httpx.Client) -> dict[str, Any]:
     """--check 模式：只比较版本，不下载，返回结果字典。"""
     local = local_skill_version()
@@ -209,6 +229,7 @@ def run_update(client: httpx.Client) -> dict[str, Any]:
         logger.info(f"完整性校验通过: {integrity}")
         extract_tarball(tarball, work / "extract")
         replace_skill_dir(work / "extract" / "package" / "skill")
+        sync_readme_version(latest)
         tarball_sha256 = file_digest(tarball, "sha256").hex()
     logger.info(f"skill 目录已更新: {SKILL_DIR}")
     return {
