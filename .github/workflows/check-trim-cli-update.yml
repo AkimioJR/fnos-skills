@@ -1,0 +1,95 @@
+name: Check trim-cli update
+
+on:
+  schedule:
+    - cron: "30 22 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: trim-cli-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Create lint environment
+        run: |
+          uv venv .venv-lint
+          uv pip install --python .venv-lint/bin/python httpx ty
+
+      - name: Ruff check
+        run: uv run --with ruff ruff check scripts/
+
+      - name: ty check
+        run: .venv-lint/bin/ty check --python .venv-lint/bin/python scripts/
+
+  update:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Update skill from npm
+        id: update
+        run: uv run scripts/update_skill.py --update
+
+      - name: Commit, tag and release
+        if: steps.update.outputs.has_update == 'true'
+        env:
+          VERSION: ${{ steps.update.outputs.version }}
+          TARBALL_URL: ${{ steps.update.outputs.tarball_url }}
+          INTEGRITY: ${{ steps.update.outputs.integrity }}
+          TARBALL_SHA256: ${{ steps.update.outputs.tarball_sha256 }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add skills/trim-cli
+          git commit -m "update(trim-cli): version: v${VERSION}"
+          git tag -a "v${VERSION}" -m "trim-cli v${VERSION}"
+          git push origin HEAD:main
+          git push origin "v${VERSION}"
+
+          mkdir dist
+          cp skills/trim-cli/manifest.json dist/manifest.json
+          (cd skills && zip -qr "../dist/trim-cli-skill-v${VERSION}.zip" trim-cli)
+
+          cat > dist/notes.md <<EOF
+          ## trim-cli v${VERSION}
+
+          Synced from npm package [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli).
+
+          - npm tarball: ${TARBALL_URL}
+          - registry integrity: ${INTEGRITY}
+          - tarball sha256: ${TARBALL_SHA256}
+
+          版本与完整性校验均以 npm registry 为准。
+          EOF
+
+          gh release create "v${VERSION}" \
+            --title "trim-cli v${VERSION}" \
+            --notes-file dist/notes.md \
+            dist/trim-cli-skill-v${VERSION}.zip \
+            dist/manifest.json
+          gh release upload "v${VERSION}" skills/trim-cli/bin/*
