@@ -6,7 +6,7 @@
 
 | Skill | 版本 | 上游 | 说明 |
 | --- | --- | --- | --- |
-| [trim-cli](skills/trim-cli/) | 0.1.0 | [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli) | TRIM NAS / fnOS 的命令行客户端技能，覆盖登录认证、文件、相册、百度网盘、应用中心、Docker、存储、用户管理等 |
+| [trim-cli](skills/trim-cli/) | 0.1.1 | [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli) | TRIM NAS / fnOS 的命令行客户端技能，覆盖登录认证、文件、相册、百度网盘、应用中心、Docker、存储、用户管理等 |
 
 ## 仓库结构
 
