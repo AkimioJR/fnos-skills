@@ -173,10 +173,10 @@ def run_check(client: httpx.Client) -> int:
     meta = fetch_registry_metadata(client)
     latest = registry_latest(meta)
     if version_key(latest) > version_key(local):
-        logger.info("发现可用更新: %s -> %s", local, latest)
+        logger.info(f"发现可用更新: {local} -> {latest}")
         write_github_output({"has_update": "true", "latest_version": latest})
         return EXIT_UPDATE_AVAILABLE
-    logger.info("skill 已是最新: %s@%s (本地 %s)", NPM_PACKAGE, latest, local)
+    logger.info(f"skill 已是最新: {NPM_PACKAGE}@{latest} (本地 {local})")
     write_github_output({"has_update": "false", "latest_version": latest})
     return EXIT_OK
 
@@ -187,7 +187,7 @@ def run_update(client: httpx.Client) -> bool:
     meta = fetch_registry_metadata(client)
     latest = registry_latest(meta)
     if version_key(latest) <= version_key(local):
-        logger.info("skill 已是最新: %s@%s (本地 %s)", NPM_PACKAGE, latest, local)
+        logger.info(f"skill 已是最新: {NPM_PACKAGE}@{latest} (本地 {local})")
         write_github_output({"has_update": "false"})
         return False
 
@@ -200,14 +200,14 @@ def run_update(client: httpx.Client) -> bool:
     if not isinstance(tarball_url, str) or not isinstance(integrity, str):
         raise TypeError(f"版本 {latest} 缺少 tarball 或 integrity 摘要")
 
-    logger.info("开始更新 skill: %s -> %s", local, latest)
-    logger.info("下载 %s", tarball_url)
+    logger.info(f"开始更新 skill: {local} -> {latest}")
+    logger.info(f"下载 {tarball_url}")
     with tempfile.TemporaryDirectory(prefix="trim-cli-skill-") as tmp:
         work = Path(tmp)
         tarball = work / "package.tgz"
         download_tarball(client, tarball_url, tarball)
         verify_integrity(tarball, integrity)
-        logger.info("完整性校验通过: %s", integrity)
+        logger.info(f"完整性校验通过: {integrity}")
         extract_tarball(tarball, work / "extract")
         replace_skill_dir(work / "extract" / "package" / "skill")
         write_github_output(
@@ -219,7 +219,7 @@ def run_update(client: httpx.Client) -> bool:
                 "tarball_sha256": file_digest(tarball, "sha256").hex(),
             }
         )
-    logger.info("skill 目录已更新: %s", SKILL_DIR)
+    logger.info(f"skill 目录已更新: {SKILL_DIR}")
     return True
 
 
@@ -247,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
                 return EXIT_OK
             return run_check(client)
     except (httpx.HTTPError, RuntimeError, OSError, ValueError, tarfile.TarError) as err:
-        logger.error("执行失败: %s", err)
+        logger.error(f"执行失败: {err}")
         return EXIT_ERROR
 
 
