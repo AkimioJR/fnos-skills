@@ -70,18 +70,3 @@ Release Assets 包含：
 - `manifest.json`。
 
 Release 说明中记录 npm tarball 链接、registry `integrity` 值与 tarball sha256。版本与完整性校验均以 npm registry 为准；commit、tag 与 Release 的操作者身份为 `github-actions[bot]`，权限来自 workflow 内的 `permissions: contents: write`，无需额外配置 secret。
-
-## 开发
-
-- Python 脚本仅使用头部 PEP 723 内联依赖（`httpx>=0.28`），本地统一以 `uv run` 执行，不使用系统 pip；
-- 新增或修改 `scripts/` 下的 Python 文件必须通过 `ruff` 与 `ty` 检查（push / PR 时 CI 自动校验）：
-  ```bash
-  uv run --with ruff ruff check scripts/
-  uv venv .venv-lint && uv pip install --python .venv-lint/bin/python httpx ty
-  .venv-lint/bin/ty check --python .venv-lint/bin/python scripts/
-  ```
-- 新增 skill 时按 `skills/<skill-name>/SKILL.md` 布局放置，frontmatter 需包含 `name` 与 `description`（description 写清触发条件），各 skill 目录名不得重名。
-
-## License
-
-MIT
