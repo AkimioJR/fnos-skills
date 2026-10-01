@@ -22,13 +22,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Ruff check
+        run: uv run --with ruff ruff check scripts/
+
       - name: Create lint environment
         run: |
           uv venv .venv-lint
           uv pip install --python .venv-lint/bin/python httpx ty
-
-      - name: Ruff check
-        run: uv run --with ruff ruff check scripts/
 
       - name: ty check
         run: .venv-lint/bin/ty check --python .venv-lint/bin/python scripts/
@@ -49,7 +49,20 @@ jobs:
 
       - name: Update skill from npm
         id: update
-        run: uv run scripts/update_skill.py --update
+        # 脚本把结果 JSON 打到 stdout、诊断日志走 stderr；
+        # 这里重定向 stdout 到文件，再用 jq 解析出各字段
+        run: |
+          uv run scripts/update_skill.py --update > result.json
+          HAS_UPDATE=$(jq -r '.has_update' result.json)
+          {
+            echo "has_update=${HAS_UPDATE}"
+            if [ "${HAS_UPDATE}" = "true" ]; then
+              echo "version=$(jq -r '.version' result.json)"
+              echo "tarball_url=$(jq -r '.tarball_url' result.json)"
+              echo "integrity=$(jq -r '.integrity' result.json)"
+              echo "tarball_sha256=$(jq -r '.tarball_sha256' result.json)"
+            fi
+          } >> "$GITHUB_OUTPUT"
 
       - name: Commit, tag and release
         if: steps.update.outputs.has_update == 'true'
@@ -93,3 +106,7 @@ jobs:
             dist/trim-cli-skill-v${VERSION}.zip \
             dist/manifest.json
           gh release upload "v${VERSION}" skills/trim-cli/bin/*
+
+      - name: Clean up
+        if: always()
+        run: rm -f result.json

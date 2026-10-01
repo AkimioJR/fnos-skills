@@ -11,6 +11,9 @@
 ``@trimjs/trim-cli`` 的 ``latest`` dist-tag。使用 ``--update`` 时，
 下载最新 tarball，按 registry 的 ``dist.integrity`` 摘要校验完整性，
 然后用其中的 ``package/skill/`` 内容整体替换 ``skills/trim-cli/``。
+
+约定：诊断信息走 stderr（logging），结果以一行 JSON 打印到 stdout，
+由调用方（本地或 CI 中的 bash/jq）解析，脚本不直接写 CI 特殊文件。
 """
 
 from __future__ import annotations
@@ -21,7 +24,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import shutil
 import sys
 import tarfile
@@ -49,7 +51,7 @@ CHUNK_SIZE = 1024 * 1024
 
 
 def setup_logging() -> None:
-    """初始化根日志器的输出格式与级别。"""
+    """初始化日志器：输出到 stderr，与 stdout 上的结果 JSON 分离。"""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
@@ -102,15 +104,6 @@ def version_key(version: str) -> tuple[tuple[int, str], ...]:
         (int("".join(ch for ch in part if ch.isdigit()) or "0"), part)
         for part in version.split(".")
     )
-
-
-def write_github_output(outputs: dict[str, str]) -> None:
-    """存在 GITHUB_OUTPUT 时把结果写进去，供后续 workflow 步骤使用。"""
-    path = os.environ.get("GITHUB_OUTPUT")
-    if not path:
-        return
-    with open(path, "a", encoding="utf-8") as handle:
-        handle.writelines(f"{key}={value}\n" for key, value in outputs.items())
 
 
 def file_digest(path: Path, algorithm: str) -> bytes:
@@ -167,29 +160,35 @@ def replace_skill_dir(source: Path) -> None:
     shutil.copytree(source, SKILL_DIR)
 
 
-def run_check(client: httpx.Client) -> int:
-    """--check 模式：只比较版本，不下载。"""
+def run_check(client: httpx.Client) -> dict[str, Any]:
+    """--check 模式：只比较版本，不下载，返回结果字典。"""
     local = local_skill_version()
     meta = fetch_registry_metadata(client)
     latest = registry_latest(meta)
-    if version_key(latest) > version_key(local):
+    has_update = version_key(latest) > version_key(local)
+    if has_update:
         logger.info(f"发现可用更新: {local} -> {latest}")
-        write_github_output({"has_update": "true", "latest_version": latest})
-        return EXIT_UPDATE_AVAILABLE
-    logger.info(f"skill 已是最新: {NPM_PACKAGE}@{latest} (本地 {local})")
-    write_github_output({"has_update": "false", "latest_version": latest})
-    return EXIT_OK
+    else:
+        logger.info(f"skill 已是最新: {NPM_PACKAGE}@{latest} (本地 {local})")
+    return {
+        "has_update": has_update,
+        "local_version": local,
+        "latest_version": latest,
+    }
 
 
-def run_update(client: httpx.Client) -> bool:
-    """--update 模式：下载并应用最新 skill，返回是否发生了更新。"""
+def run_update(client: httpx.Client) -> dict[str, Any]:
+    """--update 模式：下载并应用最新 skill，返回结果字典。"""
     local = local_skill_version()
     meta = fetch_registry_metadata(client)
     latest = registry_latest(meta)
     if version_key(latest) <= version_key(local):
         logger.info(f"skill 已是最新: {NPM_PACKAGE}@{latest} (本地 {local})")
-        write_github_output({"has_update": "false"})
-        return False
+        return {
+            "has_update": False,
+            "local_version": local,
+            "latest_version": latest,
+        }
 
     release = registry_release(meta, latest)
     dist = release.get("dist")
@@ -210,17 +209,17 @@ def run_update(client: httpx.Client) -> bool:
         logger.info(f"完整性校验通过: {integrity}")
         extract_tarball(tarball, work / "extract")
         replace_skill_dir(work / "extract" / "package" / "skill")
-        write_github_output(
-            {
-                "has_update": "true",
-                "version": latest,
-                "tarball_url": tarball_url,
-                "integrity": integrity,
-                "tarball_sha256": file_digest(tarball, "sha256").hex(),
-            }
-        )
+        tarball_sha256 = file_digest(tarball, "sha256").hex()
     logger.info(f"skill 目录已更新: {SKILL_DIR}")
-    return True
+    return {
+        "has_update": True,
+        "local_version": local,
+        "latest_version": latest,
+        "version": latest,
+        "tarball_url": tarball_url,
+        "integrity": integrity,
+        "tarball_sha256": tarball_sha256,
+    }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -228,14 +227,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="仅比较版本，不下载")
-    mode.add_argument(
-        "--update", action="store_true", help="下载并应用最新的 skill"
-    )
+    mode.add_argument("--update", action="store_true", help="下载并应用最新的 skill")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """脚本入口，返回进程退出码。"""
+    """脚本入口：成功时把结果 JSON 打印到 stdout 并返回退出码。"""
     args = parse_args(argv)
     setup_logging()
     try:
@@ -243,12 +240,22 @@ def main(argv: list[str] | None = None) -> int:
             headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT
         ) as client:
             if args.update:
-                run_update(client)
-                return EXIT_OK
-            return run_check(client)
-    except (httpx.HTTPError, RuntimeError, OSError, ValueError, tarfile.TarError) as err:
+                result = run_update(client)
+                exit_code = EXIT_OK
+            else:
+                result = run_check(client)
+                exit_code = EXIT_UPDATE_AVAILABLE if result["has_update"] else EXIT_OK
+    except (
+        httpx.HTTPError,
+        RuntimeError,
+        OSError,
+        ValueError,
+        tarfile.TarError,
+    ) as err:
         logger.error(f"执行失败: {err}")
         return EXIT_ERROR
+    print(json.dumps(result, ensure_ascii=False))
+    return exit_code
 
 
 if __name__ == "__main__":
