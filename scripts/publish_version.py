@@ -60,7 +60,9 @@ def setup_logging() -> None:
     )
 
 
-def run_cmd_with_retry(cmd: list[str], max_retries: int = 3, delay: float = 3.0) -> None:
+def run_cmd_with_retry(
+    cmd: list[str], max_retries: int = 3, delay: float = 3.0
+) -> None:
     """运行外部命令，失败时进行重试（用于应对网络抖动）。"""
     for attempt in range(1, max_retries + 1):
         logger.info(f"执行命令 (尝试 {attempt}/{max_retries}): {' '.join(cmd)}")
@@ -130,7 +132,9 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
     assets = package_assets(version, update_result)
 
     # Git 暂存与提交
-    subprocess.run(["git", "add", "skills/fnos-cli", "README.md"], check=True, cwd=REPO_ROOT)
+    subprocess.run(
+        ["git", "add", "skills/fnos-cli", "README.md"], check=True, cwd=REPO_ROOT
+    )
     status_proc = subprocess.run(
         ["git", "diff", "--cached", "--quiet"], check=False, cwd=REPO_ROOT
     )
@@ -161,8 +165,12 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
         logger.info(f"Tag {tag_name} 已存在，跳过打标签")
 
     # 推送 commit 和 tag（通过 -c remote.origin.fetch="" 避免沙箱写入 refs/remotes 导致错误）
-    run_cmd_with_retry(["git", "-c", "remote.origin.fetch=", "push", "origin", "HEAD:main"])
-    run_cmd_with_retry(["git", "-c", "remote.origin.fetch=", "push", "origin", tag_name])
+    run_cmd_with_retry(
+        ["git", "-c", "remote.origin.fetch=", "push", "origin", "HEAD:main"]
+    )
+    run_cmd_with_retry(
+        ["git", "-c", "remote.origin.fetch=", "push", "origin", tag_name]
+    )
 
     # 检查 Release 是否已存在
     release_check = subprocess.run(
