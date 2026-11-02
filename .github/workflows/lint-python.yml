@@ -34,4 +34,4 @@ jobs:
           uv pip install --python .venv-lint/bin/python httpx ty
 
       - name: ty check
-        run: .venv-lint/bin/ty check --python .venv-lint/bin/python scripts/
+        run: PYTHONPATH=scripts .venv-lint/bin/ty check --python .venv-lint/bin/python scripts/
