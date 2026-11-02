@@ -1,6 +1,6 @@
 {
   "name": "fnos-cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Use fnos-cli to sign in to and manage fnOS devices, including files, photos, applications, Docker, downloads, logs, monitoring, networking, storage, users, and Baidu Netdisk. Use when the user mentions fnOS, Feiniu OS, or a mainland China device. Excludes Media APIs and international-edition devices.",
   "entry": "SKILL.md",
   "bin": {

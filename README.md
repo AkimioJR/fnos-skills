@@ -6,7 +6,7 @@
 
 | Skill | 版本 | 上游 | 说明 |
 | --- | --- | --- | --- |
-| [fnos-cli](skills/fnos-cli/) | 0.3.1 | [@fnnas-labs/fnos-cli](https://www.npmjs.com/package/@fnnas-labs/fnos-cli) | 飞牛 OS（fnOS）官方命令行客户端技能，覆盖登录认证、文件、相册、百度网盘、应用中心、Docker、存储、用户管理等（推荐） |
+| [fnos-cli](skills/fnos-cli/) | 0.3.2 | [@fnnas-labs/fnos-cli](https://www.npmjs.com/package/@fnnas-labs/fnos-cli) | 飞牛 OS（fnOS）官方命令行客户端技能，覆盖登录认证、文件、相册、百度网盘、应用中心、Docker、存储、用户管理等（推荐） |
 | [trim-cli](skills/trim-cli/) | 0.1.1 | [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli) | TRIM NAS / fnOS 早期命令行客户端技能（保留归档） |
 
 ## 仓库结构
