@@ -1,16 +1,9 @@
 {
   "name": "fnos-cli",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "使用 fnos-cli 授权并管理 fnOS 设备的文件、照片、应用、Docker、下载、日志、监控、网络、存储、用户和百度网盘。用户提到 fnOS、飞牛系统或国内版设备时使用；不适用于国际版设备或 Media API。",
   "entry": "SKILL.md",
-  "bin": {
-    "darwin-arm64": "bin/trim-cli-darwin-arm64",
-    "darwin-x64": "bin/trim-cli-darwin-x64",
-    "linux-arm64": "bin/trim-cli-linux-arm64",
-    "linux-x64": "bin/trim-cli-linux-x64",
-    "windows-arm64": "bin/trim-cli-windows-arm64.exe",
-    "windows-x64": "bin/trim-cli-windows-x64.exe"
-  },
+  "bin": {},
   "reference": "reference/",
   "entriesDir": "entries/",
   "entries": [
@@ -88,5 +81,6 @@
       "reference/workflows/storage-dangerous-ops.md"
     ]
   },
-  "locale": "zh-CN"
+  "locale": "zh-CN",
+  "runtime": "runtime-manifest.json"
 }

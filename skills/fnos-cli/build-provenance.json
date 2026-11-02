@@ -1,44 +1,44 @@
 {
   "schema": 1,
-  "version": "0.4.1",
-  "commit": "38e09360612985e47ccd590a5c0fa2fc5ccd9e22",
-  "sourceSha256": "da32260c74a2318367e105f75c755de92f8e6cb22c3dee1300ac32c5bc3f2bfd",
+  "version": "0.5.0",
+  "commit": "1443bee208283a0ebd025a86b4e5b53a11f715ae",
+  "sourceSha256": "53829e556e9abcc84a074bfaa6100579d40927f2520af2e73826d170820518a7",
   "binaries": {
     "darwin-arm64": {
       "target": "aarch64-apple-darwin",
       "file": "bin/trim-cli-darwin-arm64",
-      "version": "0.4.1",
-      "sha256": "eab692df6557a830a1ccdd719e76238ea61e5de22dcfcd350cee71d5a2938d21"
+      "version": "0.5.0",
+      "sha256": "8f975e8a4e65d87415275f49b9b59d7c1a366f47a9aee3368c47b998b66e7ea6"
     },
     "darwin-x64": {
       "target": "x86_64-apple-darwin",
       "file": "bin/trim-cli-darwin-x64",
-      "version": "0.4.1",
-      "sha256": "9e4fbb6f89fa1c5f674a3c3ecac7115e6fd1fe18917a610ce06812efccccba82"
+      "version": "0.5.0",
+      "sha256": "7f42be88e5e2f7abddcb3c23e2fab76665ace4f71782abe9ba5356fea22679f3"
     },
     "linux-arm64": {
       "target": "aarch64-unknown-linux-gnu",
       "file": "bin/trim-cli-linux-arm64",
-      "version": "0.4.1",
-      "sha256": "aebab79e80a38ac8833bfa0afda469983ce67cf015f6c78c4ffe4929af38ce8e"
+      "version": "0.5.0",
+      "sha256": "ffdd184be462975bffca493f4dca5dda789810b1f3ecded890961a5dd1409fc1"
     },
     "linux-x64": {
       "target": "x86_64-unknown-linux-gnu",
       "file": "bin/trim-cli-linux-x64",
-      "version": "0.4.1",
-      "sha256": "a1c8413238a2a548740364da6f8c5ef02656891dd2e22f9427a6761b41d2038a"
+      "version": "0.5.0",
+      "sha256": "9acad5f7bde4b4b836696d56607058fbf42a58b79a8f45fe0df2f664ab8d2df9"
     },
     "windows-arm64": {
       "target": "aarch64-pc-windows-gnullvm",
       "file": "bin/trim-cli-windows-arm64.exe",
-      "version": "0.4.1",
-      "sha256": "9232ff4807412db4050d5b4acf7a717899572c790eee04995d516f8eae39fd2c"
+      "version": "0.5.0",
+      "sha256": "54a2ab04a9c94c4762f4303a67528a72bbdbfe157dc75b92a350706bb159291f"
     },
     "windows-x64": {
       "target": "x86_64-pc-windows-gnullvm",
       "file": "bin/trim-cli-windows-x64.exe",
-      "version": "0.4.1",
-      "sha256": "62cbc0d651733549bca63053fd54896e6c2f9a924237d8148ae1469a63f30177"
+      "version": "0.5.0",
+      "sha256": "c2be7b2193d251b6eea662e908c6a9fee2e9e0ba843fbe3eab82e1dea936edcb"
     }
   }
 }
