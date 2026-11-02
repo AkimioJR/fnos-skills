@@ -1,5 +1,6 @@
 @echo off
 setlocal
+set "TRIM_CLI_DISTRIBUTION=fnos"
 
 call :reject_media %*
 if errorlevel 1 exit /b %errorlevel%

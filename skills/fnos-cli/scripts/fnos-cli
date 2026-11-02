@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -eu
+export TRIM_CLI_DISTRIBUTION=fnos
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BIN_DIR="$SCRIPT_DIR/../bin"

@@ -1,3 +1,4 @@
+$env:TRIM_CLI_DISTRIBUTION = "fnos"
 $Architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 $Platform = if ($Architecture -eq "Arm64") { "windows-arm64" } else { "windows-x64" }
 $Target = Join-Path $PSScriptRoot "..\bin\trim-cli-$Platform.exe"
