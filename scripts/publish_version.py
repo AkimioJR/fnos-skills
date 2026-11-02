@@ -11,9 +11,9 @@
 1. 调用 update_skill 逻辑下载并解包指定版本的 skill，更新 README.md；
 2. 检查并暂存 skills/fnos-cli 与 README.md，提交 commit；
 3. 打附注 tag：fnos-cli-v<VERSION>；
-4. 打包发布资产（zip、manifest.json 及可选的 bin 二进制）；
-5. 推送 commit 与 tag 到 origin；
-6. 调用 gh release create 创建 GitHub Release 并上传资产；
+4. 打包发布资产（zip、manifest.json）；
+5. 推送 commit 与 tag 到 origin（带重试）；
+6. 调用 gh release create 创建 GitHub Release 并上传资产（带重试）；
 7. 清理临时产物。
 """
 
@@ -27,6 +27,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -59,10 +60,19 @@ def setup_logging() -> None:
     )
 
 
-def run_cmd(cmd: list[str]) -> None:
-    """运行外部命令，失败时抛出异常。"""
-    logger.info(f"执行命令: {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=REPO_ROOT, check=True)
+def run_cmd_with_retry(
+    cmd: list[str], max_retries: int = 3, delay: float = 3.0
+) -> None:
+    """运行外部命令，失败时进行重试（用于应对网络抖动）。"""
+    for attempt in range(1, max_retries + 1):
+        logger.info(f"执行命令 (尝试 {attempt}/{max_retries}): {' '.join(cmd)}")
+        proc = subprocess.run(cmd, check=False, cwd=REPO_ROOT)
+        if proc.returncode == 0:
+            return
+        logger.warning(f"命令失败 (退出码 {proc.returncode})，{delay} 秒后重试...")
+        time.sleep(delay)
+    msg = f"命令在 {max_retries} 次尝试后最终失败: {' '.join(cmd)}"
+    raise RuntimeError(msg)
 
 
 def package_assets(version: str, update_result: dict[str, Any]) -> list[Path]:
@@ -85,15 +95,6 @@ def package_assets(version: str, update_result: dict[str, Any]) -> list[Path]:
                 zf.write(file_path, arcname)
 
     assets = [zip_path, manifest_dest]
-
-    # 如果存在 bin 目录，复制所有二进制文件
-    bin_dir = SKILL_DIR / "bin"
-    if bin_dir.exists() and bin_dir.is_dir():
-        for bin_file in bin_dir.iterdir():
-            if bin_file.is_file():
-                dest_file = DIST_DIR / bin_file.name
-                shutil.copy2(bin_file, dest_file)
-                assets.append(dest_file)
 
     # 生成 Release Notes
     tarball_url = update_result.get("tarball_url", "")
@@ -131,13 +132,18 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
     assets = package_assets(version, update_result)
 
     # Git 暂存与提交
-    run_cmd(["git", "add", "skills/fnos-cli", "README.md"])
-    # 检查是否有改动需要提交
+    subprocess.run(
+        ["git", "add", "skills/fnos-cli", "README.md"], check=True, cwd=REPO_ROOT
+    )
     status_proc = subprocess.run(
         ["git", "diff", "--cached", "--quiet"], check=False, cwd=REPO_ROOT
     )
     if status_proc.returncode != 0:
-        run_cmd(["git", "commit", "-m", f"update(fnos-cli): version: v{version}"])
+        subprocess.run(
+            ["git", "commit", "-m", f"update(fnos-cli): version: v{version}"],
+            check=True,
+            cwd=REPO_ROOT,
+        )
     else:
         logger.info("工作区无新增修改，继续标签与发布")
 
@@ -150,13 +156,17 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
         check=True,
     )
     if tag_name not in tag_check.stdout.split():
-        run_cmd(["git", "tag", "-a", tag_name, "-m", f"fnos-cli v{version}"])
+        subprocess.run(
+            ["git", "tag", "-a", tag_name, "-m", f"fnos-cli v{version}"],
+            check=True,
+            cwd=REPO_ROOT,
+        )
     else:
         logger.info(f"Tag {tag_name} 已存在，跳过打标签")
 
-    # 推送 commit 和 tag
-    run_cmd(["git", "push", "origin", "HEAD:main"])
-    run_cmd(["git", "push", "origin", tag_name])
+    # 推送 commit 和 tag（带重试）
+    run_cmd_with_retry(["git", "push", "origin", "HEAD:main"])
+    run_cmd_with_retry(["git", "push", "origin", tag_name])
 
     # 检查 Release 是否已存在
     release_check = subprocess.run(
@@ -166,7 +176,12 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
         capture_output=True,
     )
     if release_check.returncode == 0:
-        logger.info(f"GitHub Release {tag_name} 已存在，跳过创建")
+        logger.info(f"GitHub Release {tag_name} 已存在，更新草稿状态（若有）")
+        subprocess.run(
+            ["gh", "release", "edit", tag_name, "--draft=false"],
+            check=False,
+            cwd=REPO_ROOT,
+        )
     else:
         # 创建 Release 并上传附件
         asset_args = [str(a) for a in assets]
@@ -181,7 +196,7 @@ def publish_version(version: str, registry_base: str = DEFAULT_REGISTRY) -> None
             "--notes-file",
             str(NOTES_PATH),
         ]
-        run_cmd(gh_cmd)
+        run_cmd_with_retry(gh_cmd)
         logger.info(f"GitHub Release {tag_name} 创建成功")
 
     # 清理
