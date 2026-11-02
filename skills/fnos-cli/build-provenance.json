@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "version": "0.2.0",
+  "commit": "847034326e2a48518a69a3f0e46bd47adcdb9f7b",
+  "sourceSha256": "eafe5fd9f54061032ba8f3d3eebdf023ad0bb6b8ca5e6652ef0327e0db4d4b70",
+  "binaries": {
+    "darwin-arm64": {
+      "target": "aarch64-apple-darwin",
+      "file": "bin/trim-cli-darwin-arm64",
+      "version": "0.2.0",
+      "sha256": "0fa8a006bf49e8a548cc83ad0962953613c1c212745b7117a44f7e0f4756ad50"
+    },
+    "darwin-x64": {
+      "target": "x86_64-apple-darwin",
+      "file": "bin/trim-cli-darwin-x64",
+      "version": "0.2.0",
+      "sha256": "f0909085e64644f60737b862ba0272df3e96664e004815d4350d906c1c05f807"
+    },
+    "linux-arm64": {
+      "target": "aarch64-unknown-linux-gnu",
+      "file": "bin/trim-cli-linux-arm64",
+      "version": "0.2.0",
+      "sha256": "c83bf57f871df5930944d098841372a2f52af031fbc54d825f8920d0741dfb1c"
+    },
+    "linux-x64": {
+      "target": "x86_64-unknown-linux-gnu",
+      "file": "bin/trim-cli-linux-x64",
+      "version": "0.2.0",
+      "sha256": "941f0d53434a2d02410f2759b81866b0b13e6a6750d919cd56aed8950abf5261"
+    },
+    "windows-arm64": {
+      "target": "aarch64-pc-windows-gnullvm",
+      "file": "bin/trim-cli-windows-arm64.exe",
+      "version": "0.2.0",
+      "sha256": "77b2445261afbbc3549572e4093107cae51b395e2bb3742cab1a0623a9b8c811"
+    },
+    "windows-x64": {
+      "target": "x86_64-pc-windows-gnullvm",
+      "file": "bin/trim-cli-windows-x64.exe",
+      "version": "0.2.0",
+      "sha256": "c3254dbd4a64853064cffbf3a03f75579f830fa8dac5ba0e645ef47ecbb9b4f5"
+    }
+  }
+}
