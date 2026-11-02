@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "30 22 * * *"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Target version to update/publish (leave empty for latest)"
+        required: false
+        default: ""
 
 concurrency:
   group: trim-cli-update
@@ -31,7 +36,11 @@ jobs:
         # 脚本把结果 JSON 打到 stdout、诊断日志走 stderr；
         # 这里重定向 stdout 到文件，再用 jq 解析出各字段
         run: |
-          uv run scripts/update_skill.py --update > result.json
+          VERSION_ARG=""
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION_ARG="--version ${{ inputs.version }}"
+          fi
+          uv run scripts/update_skill.py --skill trim-cli --update ${VERSION_ARG} > result.json
           HAS_UPDATE=$(jq -r '.has_update' result.json)
           {
             echo "has_update=${HAS_UPDATE}"
@@ -67,7 +76,10 @@ jobs:
           mkdir dist
           cp skills/trim-cli/manifest.json dist/manifest.json
           (cd skills && zip -qr "../dist/trim-cli-skill.zip" trim-cli)
-          cat > dist/notes.md <<EOF
+          if [ -d "skills/trim-cli/bin" ] && [ "$(ls -A skills/trim-cli/bin 2>/dev/null)" ]; then
+            cp skills/trim-cli/bin/* dist/
+          fi
+          cat > notes.md <<EOF
           ## trim-cli v${{ steps.update.outputs.version }}
 
           Synced from npm package [@trimjs/trim-cli](https://www.npmjs.com/package/@trimjs/trim-cli).
@@ -85,12 +97,9 @@ jobs:
         with:
           tag_name: trim-cli-v${{ steps.update.outputs.version }}
           name: trim-cli v${{ steps.update.outputs.version }}
-          body_path: dist/notes.md
-          files: |
-            dist/trim-cli-skill.zip
-            dist/manifest.json
-            skills/trim-cli/bin/*
+          body_path: notes.md
+          files: dist/*
 
       - name: Clean up
         if: always()
-        run: rm -f result.json
+        run: rm -f result.json notes.md

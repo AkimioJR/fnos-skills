@@ -1,0 +1,105 @@
+name: Check fnos-cli update
+
+on:
+  schedule:
+    - cron: "30 22 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Target version to update/publish (leave empty for latest)"
+        required: false
+        default: ""
+
+concurrency:
+  group: fnos-cli-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+
+      - name: Update skill from npm
+        id: update
+        # 脚本把结果 JSON 打到 stdout、诊断日志走 stderr；
+        # 这里重定向 stdout 到文件，再用 jq 解析出各字段
+        run: |
+          VERSION_ARG=""
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION_ARG="--version ${{ inputs.version }}"
+          fi
+          uv run scripts/update_skill.py --skill fnos-cli --update ${VERSION_ARG} > result.json
+          HAS_UPDATE=$(jq -r '.has_update' result.json)
+          {
+            echo "has_update=${HAS_UPDATE}"
+            if [ "${HAS_UPDATE}" = "true" ]; then
+              echo "version=$(jq -r '.version' result.json)"
+              echo "tarball_url=$(jq -r '.tarball_url' result.json)"
+              echo "integrity=$(jq -r '.integrity' result.json)"
+              echo "tarball_sha256=$(jq -r '.tarball_sha256' result.json)"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.update.outputs.has_update == 'true'
+        env:
+          VERSION: ${{ steps.update.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add README.md skills/fnos-cli
+          git commit -m "update(fnos-cli): version: v${VERSION}"
+
+          TAG_NAME="fnos-cli-v${VERSION}"
+          git tag -a "${TAG_NAME}" -m "fnos-cli v${VERSION}"
+          git push origin HEAD:main
+          git push origin "${TAG_NAME}"
+
+      - name: Package assets
+        if: steps.update.outputs.has_update == 'true'
+        run: |
+          mkdir dist
+          cp skills/fnos-cli/manifest.json dist/manifest.json
+          (cd skills && zip -qr "../dist/fnos-cli-skill.zip" fnos-cli)
+          if [ -d "skills/fnos-cli/bin" ] && [ "$(ls -A skills/fnos-cli/bin 2>/dev/null)" ]; then
+            cp skills/fnos-cli/bin/* dist/
+          fi
+          cat > notes.md <<EOF
+          ## fnos-cli v${{ steps.update.outputs.version }}
+
+          Synced from npm package [@fnnas-labs/fnos-cli](https://www.npmjs.com/package/@fnnas-labs/fnos-cli).
+
+          - npm tarball: ${{ steps.update.outputs.tarball_url }}
+          - registry integrity: ${{ steps.update.outputs.integrity }}
+          - tarball sha256: ${{ steps.update.outputs.tarball_sha256 }}
+
+          版本与完整性校验均以 npm registry 为准。
+          EOF
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        if: steps.update.outputs.has_update == 'true'
+        with:
+          tag_name: fnos-cli-v${{ steps.update.outputs.version }}
+          name: fnos-cli v${{ steps.update.outputs.version }}
+          body_path: notes.md
+          files: dist/*
+
+      - name: Clean up
+        if: always()
+        run: rm -f result.json notes.md
